@@ -4,7 +4,7 @@ Flask command for managing files on Put.IO.
 import json
 import os
 import shutil
- 
+
 from flask_script import Command, Manager, Option
 from putio_automator import date_handler
 from putio_automator.db import with_db
@@ -18,10 +18,31 @@ class List(Command):
         Option('--parent_id', '-p', dest='parent_id'),
     )
 
+    def resolve_parent(self, parent_id):
+        if isinstance(parent_id, int):
+            return parent_id
+
+        current = 0
+        for elem in parent_id.split('/'):
+            if not elem:
+                continue
+            for f in app.client.File.list(current):
+                if f.name == elem:
+                    current = f.id
+                    break
+            else:
+                # we listed all files in the list, but we can't find
+                # we cannot find the parent, return the root
+                return 0
+
+        return current
+
     def run(self, parent_id=None):
         "Run the command"
         if parent_id == None:
             parent_id = app.config.get('PUTIO_ROOT', 0)
+
+        parent_id = self.resolve_parent(parent_id)
         files = app.client.File.list(parent_id)
         print json.dumps([vars(f) for f in files], indent=4, default=date_handler)
 
