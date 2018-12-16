@@ -54,6 +54,28 @@ def groom():
 
     clean()
 
+
+@manager.command
+def swipe():
+    "Like groom, but also removes the files"
+    seeding = bool(int(os.getenv('GROOM_SEEDING', True)))
+
+    if seeding:
+        statuses = ['SEEDING', 'COMPLETED']
+    else:
+        statuses = ['COMPLETED']
+
+    transfer_ids = []
+    file_ids = []
+    for transfer in app.client.Transfer.list():
+        if transfer.status in statuses:
+            transfer_ids.append(transfer.id)
+            file_ids.append(transfer.file_id)
+
+    if len(transfer_ids):
+        app.client.Transfer.cancel_multi(transfer_ids)
+        app.client.File.delete_multi(file_ids, skip_nonexistents=True)
+
 class List(Command):
     "List transfers: Manually create Flask command cos of name clash with list"
     def run(self):
